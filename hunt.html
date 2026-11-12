@@ -1,116 +1,491 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Impostor Hunt — Employee Gathering</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <style>
-:root{font-family:Inter,system-ui,Arial,sans-serif;color:#172033;background:#f3f5fb}*{box-sizing:border-box}body{margin:0}.wrap{max-width:620px;margin:auto;padding:18px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 4px 18px #18243a0a}h1{font-size:25px;margin:0 0 6px}h2{font-size:18px;margin:0 0 12px}.muted{color:#64748b;font-size:14px}input,select,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #cbd5e1;width:100%;margin:6px 0}button{background:#155eef;color:#fff;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}button.alt{background:#eaf0ff;color:#1745a5}.status{padding:13px;border-radius:12px;background:#eff6ff;color:#1745a5;margin:12px 0;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.tile{padding:12px 8px;border-radius:12px;background:#f8fafc;text-align:center;border:1px solid #e5eaf2}.tile b{display:block;font-size:13px}.tile span{font-size:13px;color:#64748b}.letter{font-size:24px!important;font-weight:800;color:#155eef!important}.hidden{display:none!important}.row{display:flex;gap:8px}.row>*{flex:1}.tag{display:inline-block;padding:5px 9px;border-radius:20px;background:#eef2ff;color:#1745a5;font-size:12px;font-weight:700}.center{text-align:center}.footer{font-size:12px;color:#94a3b8;text-align:center;padding:18px}
-</style></head>
-<body><main class="wrap">
-<header class="center" style="padding:18px 0"><span class="tag">EMPLOYEE GATHERING</span><h1>IMPOSTOR HUNT</h1><div class="muted">Kumpulkan 6 huruf, temukan hewannya, dan cari warna impostor!</div></header>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#172033;background:#f3f5fb}
+*{box-sizing:border-box}
+body{margin:0}
+.wrap{max-width:620px;margin:auto;padding:18px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 4px 18px #18243a0a}
+h1{font-size:25px;margin:0 0 6px}
+h2{font-size:18px;margin:0 0 12px}
+.muted{color:#64748b;font-size:14px}
+input,select,button{font:inherit;padding:12px;border-radius:10px;border:1px solid #cbd5e1;width:100%;margin:6px 0}
+button{background:#155eef;color:#fff;border:0;font-weight:700;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.alt{background:#eaf0ff;color:#1745a5}
+button.stop{background:#64748b}
+.status{padding:13px;border-radius:12px;background:#eff6ff;color:#1745a5;margin:12px 0;line-height:1.5;overflow-wrap:anywhere}
+.status.error{background:#fee2e2;color:#991b1b}
+.status.success{background:#dcfce7;color:#166534}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tile{padding:12px 8px;border-radius:12px;background:#f8fafc;text-align:center;border:1px solid #e5eaf2}
+.tile b{display:block;font-size:13px}
+.tile span{font-size:13px;color:#64748b}
+.letter{font-size:24px!important;font-weight:800;color:#155eef!important}
+.hidden{display:none!important}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.tag{display:inline-block;padding:5px 9px;border-radius:20px;background:#eef2ff;color:#1745a5;font-size:12px;font-weight:700}
+.center{text-align:center}
+.footer{font-size:12px;color:#94a3b8;text-align:center;padding:18px}
+#reader{width:100%;overflow:hidden;border-radius:12px;margin:12px 0;background:#f1f5f9}
+#reader video{border-radius:12px}
+.scan-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.small{font-size:12px;color:#64748b;line-height:1.5}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header class="center" style="padding:18px 0">
+<span class="tag">EMPLOYEE GATHERING</span>
+<h1>IMPOSTOR HUNT</h1>
+<div class="muted">Kumpulkan 6 huruf, temukan hewannya, dan cari warna impostor!</div>
+</header>
+
 <section class="card" id="login">
-<h2>Masuk ke Tim</h2><p class="muted">Masukkan kode tim yang diberikan panitia. Gunakan perangkat yang sama selama permainan agar kode tim tetap tersimpan.</p>
+<h2>Masuk ke Tim</h2>
+<p class="muted">Masukkan kode tim yang diberikan panitia. Gunakan perangkat yang sama selama permainan agar kode tim tetap tersimpan.</p>
 <input id="teamCode" placeholder="Contoh: B1-T01" autocomplete="off" autocapitalize="characters">
-<button id="join">Masuk ke permainan</button><div id="loginMsg" class="muted"></div>
+<button id="join">Masuk ke permainan</button>
+<div id="loginMsg" class="muted"></div>
 </section>
+
 <section id="game" class="hidden">
-<div class="card"><div class="row"><div><div class="muted">TIM KAMU</div><h2 id="teamName">—</h2><span id="teamMeta" class="tag"></span></div><button class="alt" id="changeTeam" style="max-width:120px">Ganti tim</button></div><div id="notice" class="status">Memuat status permainan...</div></div>
-<div class="card"><h2>Progres 6 Warna</h2><div class="grid" id="progress"></div><p id="progressSummary" class="muted"></p></div>
-<div class="card"><h2>Kirim Jawaban Akhir</h2><p class="muted">Setelah keenam huruf terkumpul, susun nama hewan 5 huruf. Satu huruf adalah pengecoh. Pilih warna impostor.</p><input id="animal" placeholder="Nama hewan (5 huruf)" maxlength="5" autocapitalize="characters"><select id="impostor"><option value="">Pilih warna impostor</option><option>RED</option><option>BLUE</option><option>GREEN</option><option>YELLOW</option><option>PURPLE</option><option>ORANGE</option></select><button id="submit" disabled>Kirim jawaban</button><div id="answerMsg" class="status hidden"></div></div>
-<div class="card"><h2>Cara bermain</h2><ol class="muted"><li>Scan QR pemain berkostum untuk mendapatkan petunjuk wahana.</li><li>Datangi wahana yang disebutkan, lalu scan QR wahana.</li><li>Jika benar, satu huruf akan masuk ke progres tim.</li><li>Ulangi sampai enam warna selesai, lalu kirim jawaban.</li></ol></div>
+
+<div class="card">
+<div class="row">
+<div>
+<div class="muted">TIM KAMU</div>
+<h2 id="teamName">—</h2>
+<span id="teamMeta" class="tag"></span>
+</div>
+<button class="alt" id="changeTeam" style="max-width:120px">Ganti tim</button>
+</div>
+<div id="notice" class="status">Memuat status permainan...</div>
+</div>
+
+<div class="card" id="scannerCard">
+<h2>Scan QR Pemain / Wahana</h2>
+<p class="muted">Arahkan kamera belakang HP ke QR pemain berkostum atau QR wahana.</p>
+<div id="reader"></div>
+<div class="scan-actions">
+<button id="startScan">Buka Kamera</button>
+<button class="stop" id="stopScan" disabled>Tutup Kamera</button>
+</div>
+<div id="cameraMsg" class="status">Kamera belum dibuka. Tekan Buka Kamera untuk mulai scan.</div>
+<p class="small">Setelah QR terbaca, sistem langsung memprosesnya. Scanner akan mencoba aktif kembali untuk QR berikutnya.</p>
+</div>
+
+<div class="card">
+<h2>Progres 6 Warna</h2>
+<div class="grid" id="progress"></div>
+<p id="progressSummary" class="muted"></p>
+</div>
+
+<div class="card">
+<h2>Kirim Jawaban Akhir</h2>
+<p class="muted">Setelah keenam huruf terkumpul, susun nama hewan 5 huruf. Satu huruf adalah pengecoh. Pilih warna impostor.</p>
+<input id="animal" placeholder="Nama hewan (5 huruf)" maxlength="5" autocapitalize="characters">
+<select id="impostor">
+<option value="">Pilih warna impostor</option>
+<option>RED</option><option>BLUE</option><option>GREEN</option>
+<option>YELLOW</option><option>PURPLE</option><option>ORANGE</option>
+</select>
+<button id="submit" disabled>Kirim jawaban</button>
+<div id="answerMsg" class="status hidden"></div>
+</div>
+
+<div class="card">
+<h2>Cara bermain</h2>
+<ol class="muted">
+<li>Scan QR pemain berkostum untuk mendapatkan petunjuk wahana.</li>
+<li>Datangi wahana yang disebutkan, lalu scan QR wahana.</li>
+<li>Jika benar, satu huruf akan masuk ke progres tim.</li>
+<li>Ulangi sampai enam warna selesai, lalu kirim jawaban.</li>
+</ol>
+</div>
 </section>
-<div class="footer">Employee Gathering · Impostor Hunt</div></main>
+
+<div class="footer">Employee Gathering · Impostor Hunt</div>
+</main>
+
 <script>
 const SUPABASE_URL='https://mnxnyasnmtgkmlhcqhys.supabase.co';
 const SUPABASE_KEY='sb_publishable_ZyLReVa5vQSf8uKvgj1kaA_ZN1oInWT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
+
 let teamCode=localStorage.getItem('ih_team_code')||'';
 let pendingQr=new URL(location.href).searchParams.get('qr')||'';
 let refreshTimer=null;
+let scanner=null;
+let scannerRunning=false;
+let scannerStarting=false;
+let processingQr=false;
+let restartAfterScan=true;
+let sessionStatus='';
+let scanRestartTimer=null;
+
 const colors=['RED','BLUE','GREEN','YELLOW','PURPLE','ORANGE'];
-function message(text){$('notice').textContent=text}
-function showGame(on){$('login').classList.toggle('hidden',on);$('game').classList.toggle('hidden',!on)}
-function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-async function rpc(name,args){const {data,error}=await sb.rpc(name,args);if(error)throw error;return data}
+
+function message(text,type='info'){
+ $('notice').textContent=text;
+ $('notice').className='status'+(type==='error'?' error':type==='success'?' success':'');
+}
+
+function cameraMessage(text,type='info'){
+ $('cameraMsg').textContent=text;
+ $('cameraMsg').className='status'+(type==='error'?' error':type==='success'?' success':'');
+}
+
+function showGame(on){
+ $('login').classList.toggle('hidden',on);
+ $('game').classList.toggle('hidden',!on);
+}
+
+async function rpc(name,args){
+ if(!navigator.onLine)throw new Error('Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.');
+ const {data,error}=await sb.rpc(name,args);
+ if(error)throw error;
+ return data;
+}
+
+function extractToken(value){
+ const raw=String(value||'').trim();
+ if(!raw)return '';
+
+ try{
+  const url=new URL(raw);
+  const token=url.searchParams.get('qr');
+  if(token)return token.trim();
+ }catch(e){}
+
+ return raw;
+}
+
+function cameraErrorText(error){
+ const text=String(error?.message||error||'');
+ if(/NotAllowedError|Permission|denied|PermissionDenied/i.test(text))
+  return 'Izin kamera ditolak. Izinkan akses kamera melalui pengaturan browser, lalu tekan Buka Kamera lagi.';
+ if(/NotFoundError|DevicesNotFoundError/i.test(text))
+  return 'Kamera tidak ditemukan pada perangkat ini.';
+ if(/NotReadableError|TrackStartError|Could not start video source/i.test(text))
+  return 'Kamera sedang digunakan aplikasi lain. Tutup aplikasi kamera lain lalu coba lagi.';
+ if(!navigator.onLine)
+  return 'Koneksi internet terputus. Periksa jaringan sebelum scan.';
+ return 'Kamera gagal dibuka: '+text;
+}
+
 async function refresh(showDefaultNotice=true){
  if(!teamCode)return;
+
  const state=await rpc('ih_get_team_state',{p_team_code:teamCode});
- if(!state?.ok){message(state?.message||'Tidak dapat memuat tim.');return}
+ if(!state?.ok){
+  message(state?.message||'Tidak dapat memuat tim.','error');
+  return;
+ }
+
  $('teamName').textContent=state.team_name;
  $('teamMeta').textContent=state.team_code+' · '+state.batch_code;
+
+ sessionStatus=state.session_status;
+
  const progress=state.progress||[];
  const completed=progress.filter(p=>p.status==='letter_found').length;
- $('progress').innerHTML=colors.map(c=>{const p=progress.find(x=>x.color_code===c)||{};const done=p.status==='letter_found';return '<div class="tile"><b>'+c+'</b><span>'+(done?'<span class="letter">'+esc(p.letter||'✓')+'</span>':'Belum')+'</span></div>'}).join('');
+
+ $('progress').innerHTML=colors.map(c=>{
+  const p=progress.find(x=>x.color_code===c)||{};
+  const done=p.status==='letter_found';
+  return '<div class="tile"><b>'+c+'</b><span>'+
+   (done?'<span class="letter">'+
+   String(p.letter||'✓').replace(/[&<>"]/g,'')+'</span>':'Belum')+
+   '</span></div>';
+ }).join('');
+
  $('progressSummary').textContent=completed+' dari 6 huruf sudah terkumpul.';
- $('submit').disabled=completed!==6 || state.session_status!=='running';
+ $('submit').disabled=completed!==6||sessionStatus!=='running';
+
+ if(sessionStatus!=='running'){
+  $('startScan').disabled=true;
+  if(scannerRunning)await stopScanner();
+  cameraMessage('Scanner hanya aktif ketika permainan berstatus running.');
+ }else{
+  $('startScan').disabled=false;
+ }
+
  if(showDefaultNotice){
-  if(state.session_status==='draft')message('Permainan belum dimulai. Tunggu aba-aba panitia.');
-  else if(state.session_status==='running')message('Permainan berlangsung! Scan QR pemain berkostum untuk memulai misi warna.');
-  else message('Sesi permainan: '+state.session_status);
+  if(sessionStatus==='draft')
+   message('Permainan belum dimulai. Tunggu aba-aba panitia.');
+  else if(sessionStatus==='running')
+   message('Permainan berlangsung! Scan QR pemain berkostum untuk memulai misi warna.');
+  else
+   message('Sesi permainan: '+sessionStatus);
  }
 }
-async function join(code){
- teamCode=String(code||'').trim().toUpperCase();
- if(!teamCode){$('loginMsg').textContent='Masukkan kode tim.';return}
+
+async function stopScanner(){
+ if(scanRestartTimer){
+  clearTimeout(scanRestartTimer);
+  scanRestartTimer=null;
+ }
+ if(scanner&&scannerRunning){
+  try{await scanner.stop();}catch(e){}
+  scannerRunning=false;
+ }
+ $('stopScan').disabled=true;
+ $('startScan').disabled=sessionStatus!=='running';
+}
+
+async function startScanner(){
+ if(scannerRunning||scannerStarting||processingQr)return;
+ if(sessionStatus!=='running'){
+  cameraMessage('Permainan belum berjalan. Tunggu aba-aba panitia.');
+  return;
+ }
+ if(!navigator.onLine){
+  cameraMessage('Koneksi internet terputus. Periksa jaringan terlebih dahulu.','error');
+  return;
+ }
+ if(!window.Html5Qrcode){
+  cameraMessage('Komponen QR scanner belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.','error');
+  return;
+ }
+
+ scannerStarting=true;
+ $('startScan').disabled=true;
+ cameraMessage('Meminta izin kamera belakang...');
+
  try{
-  const state=await rpc('ih_get_team_state',{p_team_code:teamCode});
-  if(!state?.ok){$('loginMsg').textContent=state?.message||'Kode tim tidak ditemukan.';return}
+  if(!scanner)scanner=new Html5Qrcode('reader',{verbose:false});
+
+  const config={
+   fps:10,
+   qrbox:{width:240,height:240},
+   aspectRatio:1
+  };
+
+  try{
+   await scanner.start(
+    {facingMode:'environment'},
+    config,
+    decodedText=>onQrDetected(decodedText),
+    ()=>{}
+   );
+  }catch(firstError){
+   // Fallback: pilih kamera terakhir yang terdeteksi,
+   // biasanya kamera belakang pada perangkat HP.
+   const cameras=await Html5Qrcode.getCameras();
+   if(!cameras||!cameras.length)throw firstError;
+   const backCamera=cameras.slice().reverse().find(c=>
+    /back|rear|environment|belakang/i.test(c.label||'')
+   )||cameras[cameras.length-1];
+
+   await scanner.start(
+    backCamera.id,
+    config,
+    decodedText=>onQrDetected(decodedText),
+    ()=>{}
+   );
+  }
+
+  scannerRunning=true;
+  $('stopScan').disabled=false;
+  cameraMessage('Kamera aktif. Arahkan kamera belakang ke QR pemain atau QR wahana.','success');
+
+ }catch(error){
+  scannerRunning=false;
+  cameraMessage(cameraErrorText(error),'error');
+  $('startScan').disabled=false;
+ }finally{
+  scannerStarting=false;
+ }
+}
+
+async function onQrDetected(decodedText){
+ if(processingQr)return;
+ processingQr=true;
+ await stopScanner();
+
+ const token=extractToken(decodedText);
+ cameraMessage('QR terbaca. Memproses ke server...');
+
+ try{
+  if(!token||token.length!==64||!/^[a-f0-9]+$/i.test(token)){
+   throw new Error('Format QR tidak dikenali. Pastikan QR berasal dari panitia.');
+  }
+
+  const result=await rpc('ih_scan_qr',{
+   p_team_code:teamCode,
+   p_token:token
+  });
+
+  if(result?.ok===false){
+   message(result.message||'QR tidak dapat diproses.','error');
+   cameraMessage(result.message||'QR tidak valid.','error');
+  }else if(result?.code==='player_ok'){
+   message('Warna '+result.color_code+': cari wahana '+result.ride_name+'.','success');
+   cameraMessage('QR pemain berhasil! Petunjuk wahana sudah diberikan.','success');
+  }else if(result?.code==='ride_ok'){
+   message('Berhasil! Huruf '+result.letter+' untuk warna '+result.color_code+' sudah didapat.','success');
+   cameraMessage('QR wahana benar! Huruf berhasil ditambahkan.','success');
+  }else{
+   const msg=result?.message||'QR diproses.';
+   message(msg,result?.ok===false?'error':'info');
+   cameraMessage(msg,result?.ok===false?'error':'success');
+  }
+
+  await refresh(false);
+
+ }catch(error){
+  const msg=error.message||'Gagal memproses QR.';
+  message(msg,'error');
+  cameraMessage(msg,'error');
+ }finally{
+  processingQr=false;
+
+  // Beri waktu agar pesan hasil terbaca sebelum kamera aktif lagi.
+  if(restartAfterScan&&sessionStatus==='running'){
+   scanRestartTimer=setTimeout(()=>{
+    startScanner();
+   },1800);
+  }else{
+   $('startScan').disabled=sessionStatus!=='running';
+  }
+ }
+}
+
+async function handleQr(){
+ if(!pendingQr||!teamCode)return;
+
+ const token=extractToken(pendingQr);
+ pendingQr='';
+
+ const cleanUrl=new URL(location.href);
+ cleanUrl.searchParams.delete('qr');
+ history.replaceState({},'',cleanUrl.pathname+(cleanUrl.search?cleanUrl.search:'')+cleanUrl.hash);
+
+ await onQrDetected(token);
+}
+
+async function join(code){
+ const codeValue=String(code||'').trim().toUpperCase();
+ if(!codeValue){
+  $('loginMsg').textContent='Masukkan kode tim.';
+  return;
+ }
+
+ $('join').disabled=true;
+ $('loginMsg').textContent='Memeriksa kode tim...';
+
+ try{
+  const state=await rpc('ih_get_team_state',{p_team_code:codeValue});
+  if(!state?.ok){
+   $('loginMsg').textContent=state?.message||'Kode tim tidak ditemukan.';
+   return;
+  }
+
+  teamCode=codeValue;
   localStorage.setItem('ih_team_code',teamCode);
   showGame(true);
   await refresh();
+
+  if(!refreshTimer)
+   refreshTimer=setInterval(()=>refresh(false).catch(()=>{}),8000);
+
   await handleQr();
-  if(!refreshTimer)refreshTimer=setInterval(()=>refresh(false).catch(()=>{}),8000);
- }catch(e){$('loginMsg').textContent='Gagal terhubung: '+e.message}
+
+ }catch(e){
+  $('loginMsg').textContent='Gagal terhubung: '+e.message;
+ }finally{
+  $('join').disabled=false;
+ }
 }
-async function handleQr(){
- if(!pendingQr)return;
- if(!teamCode){showGame(false);$('loginMsg').textContent='QR sudah terbaca. Masukkan kode tim untuk melanjutkan; QR akan diproses otomatis setelah masuk.';return}
- const token=pendingQr;
- try{
-  message('QR terbaca. Memproses misi...');
-  const result=await rpc('ih_scan_qr',{p_team_code:teamCode,p_token:token});
-  if(result?.ok===false){message(result.message||'QR tidak dapat diproses.');}
-  else if(result?.code==='player_ok'){message('Warna '+result.color_code+': cari wahana '+result.ride_name+'.');}
-  else if(result?.code==='ride_ok'){message('Berhasil! Huruf '+result.letter+' untuk warna '+result.color_code+' sudah didapat.');}
-  else {message(result?.message||'QR diproses.');}
-  pendingQr='';
-  const cleanUrl=new URL(location.href);cleanUrl.searchParams.delete('qr');
-  history.replaceState({},'',cleanUrl.pathname+(cleanUrl.search?cleanUrl.search:'')+cleanUrl.hash);
-  await refresh(false);
- }catch(e){message('Gagal memproses QR: '+e.message+' Muat ulang halaman untuk mencoba lagi.');}
-}
+
 $('join').onclick=()=>join($('teamCode').value);
 $('teamCode').value=teamCode;
-$('changeTeam').onclick=()=>{
+
+$('startScan').onclick=startScanner;
+$('stopScan').onclick=stopScanner;
+
+$('changeTeam').onclick=async()=>{
  if(confirm('Ganti kode tim di perangkat ini?')){
-  localStorage.removeItem('ih_team_code');teamCode='';showGame(false);
-  if(refreshTimer){clearInterval(refreshTimer);refreshTimer=null}
+  await stopScanner();
+  localStorage.removeItem('ih_team_code');
+  teamCode='';
+  showGame(false);
+  if(refreshTimer){
+   clearInterval(refreshTimer);
+   refreshTimer=null;
+  }
   $('teamCode').value='';
+  $('loginMsg').textContent='';
  }
 };
+
 $('submit').onclick=async()=>{
- const answer=$('animal').value.trim().toUpperCase(),color=$('impostor').value;
- if(answer.length!==5||!color){$('answerMsg').textContent='Isi nama hewan 5 huruf dan pilih warna impostor.';$('answerMsg').classList.remove('hidden');return}
- $('submit').disabled=true;
- try{
-  const result=await rpc('ih_submit_answer',{p_team_code:teamCode,p_animal_answer:answer,p_impostor_color_code:color});
-  $('answerMsg').textContent=result?.message||'Jawaban terkirim.';
+ const answer=$('animal').value.trim().toUpperCase();
+ const color=$('impostor').value;
+
+ if(answer.length!==5||!color){
+  $('answerMsg').textContent='Isi nama hewan 5 huruf dan pilih warna impostor.';
   $('answerMsg').classList.remove('hidden');
+  return;
+ }
+
+ $('submit').disabled=true;
+ $('answerMsg').textContent='Mengirim jawaban...';
+ $('answerMsg').classList.remove('hidden');
+
+ try{
+  const result=await rpc('ih_submit_answer',{
+   p_team_code:teamCode,
+   p_animal_answer:answer,
+   p_impostor_color_code:color
+  });
+
+  $('answerMsg').textContent=result?.message||'Jawaban terkirim.';
+  $('answerMsg').className='status'+(result?.correct?' success':'');
+  await refresh(false);
+
  }catch(e){
   $('answerMsg').textContent='Gagal mengirim: '+e.message;
-  $('answerMsg').classList.remove('hidden');
+  $('answerMsg').className='status error';
   await refresh(false).catch(()=>{});
  }
 };
+
+window.addEventListener('offline',()=>{
+ cameraMessage('Koneksi internet terputus. Scan dihentikan sampai jaringan kembali.','error');
+ stopScanner();
+});
+
+window.addEventListener('online',()=>{
+ cameraMessage('Koneksi kembali. Tekan Buka Kamera untuk melanjutkan.');
+});
+
 if(teamCode){
  showGame(true);
  $('teamCode').value=teamCode;
- refresh().then(handleQr).catch(e=>message('Gagal memuat: '+e.message));
+
+ refresh().then(handleQr).catch(e=>{
+  message('Gagal memuat: '+e.message,'error');
+ });
+
  refreshTimer=setInterval(()=>refresh(false).catch(()=>{}),8000);
 }else{
  showGame(false);
- if(pendingQr)$('loginMsg').textContent='QR sudah terbaca. Masukkan kode tim untuk melanjutkan; QR akan diproses otomatis setelah masuk.';
+ if(pendingQr){
+  $('loginMsg').textContent='QR terbaca. Masukkan kode tim untuk memproses QR.';
+ }
 }
-</script></body></html>
+</script>
+</body>
+</html>
