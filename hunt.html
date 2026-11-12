@@ -246,10 +246,12 @@ async function stopScanner(){
  $('startScan').disabled=sessionStatus!=='running';
  $('testCamera').disabled=false;
 }
-async function startScanner(testOnly=false){
- if(scannerRunning||scannerStarting||processingQr)return;
 
- if(!testOnly&&sessionStatus!=='running'){
+
+async function startScanner(testOnly=false){
+ if(scannerRunning || scannerStarting || processingQr) return;
+
+ if(!testOnly && sessionStatus !== 'running'){
   cameraMessage('Permainan belum berjalan. Gunakan tombol Tes Kamera untuk mencoba kamera.');
   return;
  }
@@ -264,69 +266,72 @@ async function startScanner(testOnly=false){
   return;
  }
 
- cameraTestMode=testOnly;
- scannerStarting=true;
- $('startScan').disabled=true;
- $('testCamera').disabled=true;
- cameraMessage(testOnly?'Membuka kamera untuk tes...':'Meminta izin kamera belakang...');
+ cameraTestMode = testOnly;
+ scannerStarting = true;
+ $('startScan').disabled = true;
+ $('testCamera').disabled = true;
 
- try{
-  if(!scanner)scanner=new Html5Qrcode('reader',{verbose:false});
+ cameraMessage('Meminta izin kamera belakang...');
 
-  const config={
-   fps:10,
-   qrbox:{width:240,height:240},
-   aspectRatio:1
-  };
-
-  try{
-   await scanner.start(
-    {facingMode:{ideal:'environment'}},
-    config,
-    decodedText=>{
-     if(cameraTestMode)onTestQrDetected(decodedText);
-     else onQrDetected(decodedText);
-    },
-    ()=>{}
-   );
-  }catch(firstError){
-   const cameras=await Html5Qrcode.getCameras();
-   if(!cameras||!cameras.length)throw firstError;
-
-   const backCamera=cameras.find(c=>
-    /back|rear|environment|belakang/i.test(c.label||'')
-   )||cameras[cameras.length-1];
-
-   await scanner.start(
-    backCamera.id,
-    config,
-    decodedText=>{
-     if(cameraTestMode)onTestQrDetected(decodedText);
-     else onQrDetected(decodedText);
-    },
-    ()=>{}
-   );
+ try {
+  if(!scanner){
+   scanner = new Html5Qrcode('reader',{verbose:false});
   }
 
-  scannerRunning=true;
-  $('stopScan').disabled=false;
+  const config = {
+   fps: 10,
+   qrbox: {width:240,height:240},
+   aspectRatio: 1
+  };
+
+  // Hanya satu proses start. Tidak mencoba start kedua
+  // pada objek scanner yang masih dalam transisi.
+  await scanner.start(
+   {facingMode:'environment'},
+   config,
+   decodedText => {
+    if(cameraTestMode){
+     onTestQrDetected(decodedText);
+    } else {
+     onQrDetected(decodedText);
+    }
+   },
+   () => {}
+  );
+
+  scannerRunning = true;
+  $('stopScan').disabled = false;
+
   cameraMessage(
    testOnly
-    ?'Mode tes aktif. Arahkan kamera ke QR apa pun untuk menguji pembacaan.'
-    :'Kamera aktif. Arahkan kamera belakang ke QR pemain atau QR wahana.',
+    ? 'Mode tes aktif. Arahkan kamera belakang ke QR apa pun.'
+    : 'Kamera aktif. Arahkan ke QR pemain atau QR wahana.',
    'success'
   );
 
- }catch(error){
-  scannerRunning=false;
+ } catch(error) {
+  scannerRunning = false;
+
   cameraMessage(cameraErrorText(error),'error');
-  $('startScan').disabled=sessionStatus!=='running';
-  $('testCamera').disabled=false;
- }finally{
-  scannerStarting=false;
+
+  // Buang instance yang gagal agar percobaan berikutnya
+  // dimulai dengan objek scanner baru.
+  try {
+   if(scanner){
+    await scanner.clear();
+   }
+  } catch(cleanupError) {}
+
+  scanner = null;
+  $('startScan').disabled = sessionStatus !== 'running';
+  $('testCamera').disabled = false;
+
+ } finally {
+  scannerStarting = false;
  }
 }
 
+ 
 async function onTestQrDetected(decodedText){
  if(processingQr)return;
  processingQr=true;
