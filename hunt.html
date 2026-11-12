@@ -130,6 +130,7 @@ let refreshTimer=null;
 let scanner=null;
 let scannerRunning=false;
 let scannerStarting=false;
+let cameraTestMode=false;
 let processingQr=false;
 let restartAfterScan=true;
 let sessionStatus='';
@@ -243,26 +244,31 @@ async function stopScanner(){
  }
  $('stopScan').disabled=true;
  $('startScan').disabled=sessionStatus!=='running';
+ $('testCamera').disabled=false;
 }
-
-async function startScanner(){
+async function startScanner(testOnly=false){
  if(scannerRunning||scannerStarting||processingQr)return;
- if(sessionStatus!=='running'){
-  cameraMessage('Permainan belum berjalan. Tunggu aba-aba panitia.');
+
+ if(!testOnly&&sessionStatus!=='running'){
+  cameraMessage('Permainan belum berjalan. Gunakan tombol Tes Kamera untuk mencoba kamera.');
   return;
  }
+
  if(!navigator.onLine){
   cameraMessage('Koneksi internet terputus. Periksa jaringan terlebih dahulu.','error');
   return;
  }
+
  if(!window.Html5Qrcode){
-  cameraMessage('Komponen QR scanner belum berhasil dimuat. Periksa koneksi internet lalu muat ulang halaman.','error');
+  cameraMessage('Komponen QR scanner belum berhasil dimuat. Periksa koneksi internet.','error');
   return;
  }
 
+ cameraTestMode=testOnly;
  scannerStarting=true;
  $('startScan').disabled=true;
- cameraMessage('Meminta izin kamera belakang...');
+ $('testCamera').disabled=true;
+ cameraMessage(testOnly?'Membuka kamera untuk tes...':'Meminta izin kamera belakang...');
 
  try{
   if(!scanner)scanner=new Html5Qrcode('reader',{verbose:false});
@@ -275,41 +281,73 @@ async function startScanner(){
 
   try{
    await scanner.start(
-    {facingMode:'environment'},
+    {facingMode:{ideal:'environment'}},
     config,
-    decodedText=>onQrDetected(decodedText),
+    decodedText=>{
+     if(cameraTestMode)onTestQrDetected(decodedText);
+     else onQrDetected(decodedText);
+    },
     ()=>{}
    );
   }catch(firstError){
-   // Fallback: pilih kamera terakhir yang terdeteksi,
-   // biasanya kamera belakang pada perangkat HP.
    const cameras=await Html5Qrcode.getCameras();
    if(!cameras||!cameras.length)throw firstError;
-   const backCamera=cameras.slice().reverse().find(c=>
+
+   const backCamera=cameras.find(c=>
     /back|rear|environment|belakang/i.test(c.label||'')
    )||cameras[cameras.length-1];
 
    await scanner.start(
     backCamera.id,
     config,
-    decodedText=>onQrDetected(decodedText),
+    decodedText=>{
+     if(cameraTestMode)onTestQrDetected(decodedText);
+     else onQrDetected(decodedText);
+    },
     ()=>{}
    );
   }
 
   scannerRunning=true;
   $('stopScan').disabled=false;
-  cameraMessage('Kamera aktif. Arahkan kamera belakang ke QR pemain atau QR wahana.','success');
+  cameraMessage(
+   testOnly
+    ?'Mode tes aktif. Arahkan kamera ke QR apa pun untuk menguji pembacaan.'
+    :'Kamera aktif. Arahkan kamera belakang ke QR pemain atau QR wahana.',
+   'success'
+  );
 
  }catch(error){
   scannerRunning=false;
   cameraMessage(cameraErrorText(error),'error');
-  $('startScan').disabled=false;
+  $('startScan').disabled=sessionStatus!=='running';
+  $('testCamera').disabled=false;
  }finally{
   scannerStarting=false;
  }
 }
 
+async function onTestQrDetected(decodedText){
+ if(processingQr)return;
+ processingQr=true;
+ await stopScanner();
+
+ const raw=String(decodedText||'').trim();
+
+ cameraMessage(
+  'BERHASIL! QR berhasil dibaca kamera. Isi QR: '+
+  raw.substring(0,100)+
+  (raw.length>100?'...':'')+
+  '. Tidak ada data yang dikirim ke Supabase.',
+  'success'
+ );
+
+ processingQr=false;
+ cameraTestMode=false;
+ $('testCamera').disabled=false;
+ $('startScan').disabled=sessionStatus!=='running';
+}
+ 
 async function onQrDetected(decodedText){
  if(processingQr)return;
  processingQr=true;
@@ -413,8 +451,9 @@ async function join(code){
 $('join').onclick=()=>join($('teamCode').value);
 $('teamCode').value=teamCode;
 
-$('startScan').onclick=startScanner;
+$('startScan').onclick=()=>startScanner(false);
 $('stopScan').onclick=stopScanner;
+$('testCamera').onclick=()=>startScanner(true);
 
 $('changeTeam').onclick=async()=>{
  if(confirm('Ganti kode tim di perangkat ini?')){
