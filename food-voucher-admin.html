@@ -1,0 +1,183 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Voucher Makan</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<style>
+body{font-family:Arial,sans-serif;background:#f3f4f6;margin:0;padding:20px;color:#222}
+main{max-width:650px;margin:auto}
+.card{background:white;padding:20px;border-radius:12px;margin:14px 0;box-shadow:0 2px 8px #0001}
+h1{font-size:23px}
+input,button,select{box-sizing:border-box;width:100%;padding:13px;margin:7px 0;border:1px solid #ccc;border-radius:8px;font-size:16px}
+button{background:#155eef;color:white;border:0;font-weight:bold;cursor:pointer}
+button.secondary{background:#555}
+button:disabled{opacity:.5}
+.muted{color:#666;font-size:13px}
+.result{padding:14px;border-radius:8px;background:#eee;margin-top:12px;overflow-wrap:anywhere}
+.good{background:#dcfce7;color:#166534}
+.bad{background:#fee2e2;color:#991b1b}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:#f1f5f9;padding:14px 5px;text-align:center;border-radius:8px}
+.stat strong{display:block;font-size:24px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+<h1>Admin Voucher Makan</h1>
+<p class="muted">Employee Gathering · Sistem penukaran voucher digital</p>
+
+<section class="card" id="loginBox">
+<h3>Login Petugas</h3>
+<input id="email" type="email" placeholder="Email akun admin">
+<input id="password" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+<div id="loginMsg" class="result hidden"></div>
+</section>
+
+<section id="app" class="hidden">
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<strong id="userEmail"></strong>
+<button class="secondary" style="width:auto" onclick="logout()">Keluar</button>
+</div>
+</div>
+
+<div class="card">
+<h3>Scan QR Voucher</h3>
+<div id="reader"></div>
+<p class="muted">Arahkan kamera belakang ke QR voucher peserta.</p>
+<button onclick="startScanner()">Buka Kamera</button>
+<button class="secondary" onclick="stopScanner()">Tutup Kamera</button>
+<hr>
+<h4>Input token manual</h4>
+<input id="manualToken" placeholder="Tempel token voucher di sini">
+<button onclick="redeem(document.getElementById('manualToken').value)">Periksa dan Tukarkan</button>
+<div id="scanResult" class="result hidden"></div>
+</div>
+
+<div class="card">
+<h3>Rekap Voucher</h3>
+<select id="batchSelect" onchange="loadSummary()">
+<option value="">Pilih batch</option>
+<option value="Batch1">Batch 1</option>
+<option value="Batch2">Batch 2</option>
+</select>
+<div class="stats">
+<div class="stat">Total<strong id="total">-</strong></div>
+<div class="stat">Aktif<strong id="active">-</strong></div>
+<div class="stat">Ditukar<strong id="redeemed">-</strong></div>
+</div>
+<button class="secondary" onclick="loadSummary()">Perbarui Rekap</button>
+</div>
+</section>
+</main>
+
+<script>
+const SUPABASE_URL = "https://mnxnyasnmtgkmlhcqhys.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ZyLReVa5vQSf8uKvgj1kaA_ZN1oInWT";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let scanner = null;
+let scanning = false;
+
+function show(id,msg,good=false){
+ const el=document.getElementById(id);
+ el.textContent=msg;
+ el.className="result "+(good?"good":"bad");
+ el.classList.remove("hidden");
+}
+
+async function login(){
+ const email=document.getElementById("email").value.trim();
+ const password=document.getElementById("password").value;
+ const {data,error}=await db.auth.signInWithPassword({email,password});
+ if(error){show("loginMsg",error.message);return;}
+ await checkSession();
+}
+
+async function checkSession(){
+ const {data}=await db.auth.getSession();
+ if(!data.session){
+  document.getElementById("loginBox").classList.remove("hidden");
+  document.getElementById("app").classList.add("hidden");
+  return;
+ }
+ document.getElementById("loginBox").classList.add("hidden");
+ document.getElementById("app").classList.remove("hidden");
+ document.getElementById("userEmail").textContent=data.session.user.email;
+}
+
+async function logout(){
+ await stopScanner();
+ await db.auth.signOut();
+ await checkSession();
+}
+
+async function startScanner(){
+ if(scanning)return;
+ try{
+  if(!scanner)scanner=new Html5Qrcode("reader");
+  await scanner.start(
+   {facingMode:"environment"},
+   {fps:10,qrbox:{width:240,height:240}},
+   async text=>{
+    await stopScanner();
+    await redeem(text);
+   },
+   ()=>{}
+  );
+  scanning=true;
+ }catch(e){
+  show("scanResult","Kamera tidak dapat dibuka: "+e.message);
+ }
+}
+
+async function stopScanner(){
+ if(scanner && scanning){
+  try{await scanner.stop();}catch(e){}
+  scanning=false;
+ }
+}
+
+async function redeem(token){
+ token=(token||"").trim();
+ if(!token){show("scanResult","Token QR kosong.");return;}
+ const {data,error}=await db.rpc("ih_redeem_food_voucher",{p_token:token});
+ if(error){show("scanResult","Gagal memeriksa voucher: "+error.message);return;}
+ if(data && data.ok){
+  show("scanResult",
+   "BERHASIL DITUKAR\nNama: "+data.participant_name+
+   "\nNID: "+data.nid+
+   "\nBatch: "+data.batch+
+   "\nTim: "+data.team_code+
+   "\nWaktu: "+new Date(data.redeemed_at).toLocaleString("id-ID"),true);
+  document.getElementById("manualToken").value="";
+ }else{
+  show("scanResult",(data && data.message)||"Voucher tidak valid.");
+ }
+}
+
+async function loadSummary(){
+ const batch=document.getElementById("batchSelect").value;
+ if(!batch)return;
+ const {data:session,error:sessionError}=await db
+  .from("ih_game_sessions").select("id").eq("batch_code",batch).maybeSingle();
+ if(sessionError||!session){
+  alert("Data batch tidak ditemukan.");return;
+ }
+ const {data,error}=await db.rpc("ih_food_voucher_summary",{p_session_id:session.id});
+ if(error){alert("Gagal memuat rekap: "+error.message);return;}
+ document.getElementById("total").textContent=data.total;
+ document.getElementById("active").textContent=data.active;
+ document.getElementById("redeemed").textContent=data.redeemed;
+}
+
+db.auth.onAuthStateChange(()=>checkSession());
+checkSession();
+</script>
+</body>
+</html>
