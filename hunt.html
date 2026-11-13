@@ -331,10 +331,10 @@ async function startScanner(testOnly=false){
  }
 }
 
- 
 async function onTestQrDetected(decodedText){
  if(processingQr)return;
  processingQr=true;
+
  await stopScanner();
 
  const raw=String(decodedText||'').trim();
@@ -349,10 +349,16 @@ async function onTestQrDetected(decodedText){
 
  processingQr=false;
  cameraTestMode=false;
+
  $('testCamera').disabled=false;
  $('startScan').disabled=sessionStatus!=='running';
+
+ // Buka kembali kamera dalam mode tes tanpa reload.
+ scanRestartTimer=setTimeout(()=>{
+  startScanner(true);
+ },1800);
 }
- 
+
 async function onQrDetected(decodedText){
  if(processingQr)return;
  processingQr=true;
