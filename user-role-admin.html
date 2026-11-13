@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pengelolaan Akun Petugas</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5fb;color:#172033;font-family:Arial,sans-serif}.wrap{max-width:760px;margin:auto;padding:18px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px;margin:14px 0}h1{font-size:23px;margin:0 0 8px}h2{font-size:18px}.muted{color:#64748b;font-size:13px;line-height:1.5}input,select,button{font:inherit;width:100%;padding:12px;border-radius:9px;margin:6px 0}input,select{border:1px solid #cbd5e1;background:white}button{border:0;background:#155eef;color:white;font-weight:bold;cursor:pointer}button.secondary{background:#e8efff;color:#1745a5}button.danger{background:#b42318}.hidden{display:none!important}.msg{padding:12px;border-radius:9px;background:#eff6ff;margin-top:10px;white-space:pre-line}.good{background:#dcfce7;color:#166534}.bad{background:#fee2e2;color:#991b1b}.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:480px}th,td{text-align:left;padding:9px;border-bottom:1px solid #e5eaf0;font-size:13px}th{background:#f8fafc}.role{display:inline-block;padding:4px 8px;border-radius:20px;background:#eef2ff;margin:2px;font-size:12px}
+</style></head><body><main class="wrap">
+<section id="login" class="card"><h1>Pengelolaan Akun Petugas</h1><p class="muted">Login dengan akun Admin Teknis atau Super Admin.</p>
+<input id="email" type="email" placeholder="Email admin"><input id="password" type="password" placeholder="Password"><button id="loginBtn">Login</button><div id="loginMsg" class="msg hidden"></div></section>
+<section id="app" class="hidden">
+<div class="card"><div class="row"><div><h1>Akun dan Role Petugas</h1><p class="muted" id="who"></p></div><button class="secondary" id="logout" style="max-width:110px">Keluar</button></div>
+<p class="muted">Catatan: halaman ini hanya memberi role kepada akun yang sudah dibuat di Supabase Authentication. Halaman ini tidak membuat akun atau mengirim undangan.</p></div>
+<div class="card"><h2>Berikan role</h2><input id="targetEmail" type="email" placeholder="Email akun petugas yang sudah terdaftar">
+<select id="role"><option value="participant_admin">Admin Peserta</option><option value="game_staff">Petugas Permainan</option><option value="voucher_staff">Petugas Voucher</option><option value="it_admin">Admin Teknis</option><option value="super_admin">Super Admin</option></select>
+<button id="grant">Berikan Role</button><div id="actionMsg" class="msg hidden"></div></div>
+<div class="card"><div class="row"><h2>Daftar role terpasang</h2><button class="secondary" id="refresh" style="max-width:140px">Muat ulang</button></div>
+<div class="tablewrap"><table><thead><tr><th>Email</th><th>Role</th><th>Diberikan pada</th><th>Aksi</th></tr></thead><tbody id="rolesBody"></tbody></table></div><div id="listMsg" class="muted"></div></div>
+</section></main>
+<script>
+const db=supabase.createClient('https://mnxnyasnmtgkmlhcqhys.supabase.co','sb_publishable_ZyLReVa5vQSf8uKvgj1kaA_ZN1oInWT');
+const $=id=>document.getElementById(id);
+function msg(id,text,ok){$(id).textContent=text;$(id).className='msg '+(ok?'good':'bad');$(id).classList.remove('hidden')}
+async function enter(){const {data:{user}}=await db.auth.getUser();if(!user){$('login').classList.remove('hidden');$('app').classList.add('hidden');return}
+const {data:roles,error}=await db.from('app_user_roles').select('role_code').eq('user_id',user.id);
+if(error||!(roles||[]).some(r=>['super_admin','it_admin'].includes(r.role_code))){await db.auth.signOut();msg('loginMsg',error?error.message:'Akses hanya untuk Admin Teknis atau Super Admin.',false);return}
+$('who').textContent=user.email+' · '+roles.map(r=>r.role_code).join(', ');$('login').classList.add('hidden');$('app').classList.remove('hidden');await loadRoles()}
+$('loginBtn').onclick=async()=>{const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){msg('loginMsg',error.message,false);return}await enter()};
+$('logout').onclick=async()=>{await db.auth.signOut();location.reload()};
+$('refresh').onclick=loadRoles;
+$('grant').onclick=async()=>{const email=$('targetEmail').value.trim(),role=$('role').value;if(!email){msg('actionMsg','Masukkan email akun petugas.',false);return}
+const {data,error}=await db.rpc('ih_admin_grant_role',{p_email:email,p_role_code:role});if(error){msg('actionMsg','Gagal memberikan role: '+error.message,false);return}msg('actionMsg',data?.message||'Selesai.',!!data?.ok);if(data?.ok){$('targetEmail').value='';await loadRoles()}};
+async function revoke(email,role){if(!confirm('Cabut role '+role+' dari '+email+'?'))return;const {data,error}=await db.rpc('ih_admin_revoke_role',{p_email:email,p_role_code:role});if(error){msg('listMsg','Gagal mencabut role: '+error.message,false);return}msg('listMsg',data?.message||'Selesai.',!!data?.ok);await loadRoles()}
+async function loadRoles(){const {data,error}=await db.rpc('ih_admin_list_role_assignments');if(error){$('listMsg').textContent='Gagal memuat daftar role: '+error.message;return}
+$('rolesBody').innerHTML=(data||[]).map(r=>'<tr><td>'+String(r.user_email||'').replace(/[&<>"]/g,'')+'</td><td><span class="role">'+r.role_code+'</span></td><td>'+new Date(r.granted_at).toLocaleDateString('id-ID')+'</td><td><button class="danger" style="padding:7px;margin:0" data-email="'+r.user_email+'" data-role="'+r.role_code+'">Cabut</button></td></tr>').join('');
+$('rolesBody').querySelectorAll('button').forEach(b=>b.onclick=()=>revoke(b.dataset.email,b.dataset.role));$('listMsg').textContent=(data||[]).length+' role terdaftar.'}
+db.auth.getSession().then(({data})=>{if(data.session)enter()});
+</script></body></html>
