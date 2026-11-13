@@ -377,7 +377,13 @@ async function onQrDetected(decodedText){
    p_token:token
   });
 
-  if(result?.ok===false){
+   if(result?.code==='wrong_player'){
+   message('Ups! Ini bukan pemain yang ditugaskan untuk tim kamu. Cari nomor pemain yang tepat.','error');
+   cameraMessage('QR pemain belum tepat. Coba scan pemain sesuai petunjuk.','error');
+  }else if(result?.code==='staff_verification_required'){
+   message('Petugas belum mengonfirmasi misi ini. Tunggu konfirmasi petugas sebelum scan ulang.','error');
+   cameraMessage('Misi menunggu verifikasi petugas.','error');
+  }else if(result?.ok===false){
    message(result.message||'QR tidak dapat diproses.','error');
    cameraMessage(result.message||'QR tidak valid.','error');
   }else if(result?.code==='player_ok'){
@@ -388,8 +394,8 @@ async function onQrDetected(decodedText){
    cameraMessage('QR wahana benar! Huruf berhasil ditambahkan.','success');
   }else{
    const msg=result?.message||'QR diproses.';
-   message(msg,result?.ok===false?'error':'info');
-   cameraMessage(msg,result?.ok===false?'error':'success');
+   message(msg,'info');
+   cameraMessage(msg,'success');
   }
 
   await refresh(false);
