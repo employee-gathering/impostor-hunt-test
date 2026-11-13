@@ -128,24 +128,32 @@ function showPanel(id){
 
 async function enter(){
   const {data:{user}}=await sb.auth.getUser();
-  if(!user){showPanel('login');return}
+  if(!user){
+    showPanel('login');
+    return;
+  }
 
-  const {data,error}=await sb.from('admin_users')
-    .select('user_id')
-    .eq('user_id',user.id)
-    .maybeSingle();
+  const {data:roles,error}=await sb
+    .from('app_user_roles')
+    .select('role_code')
+    .eq('user_id',user.id);
 
-  if(error||!data){
+  const allowed=['it_admin','super_admin'];
+  const codes=(roles||[]).map(r=>r.role_code);
+
+  if(error||!codes.some(r=>allowed.includes(r))){
     await sb.auth.signOut();
     showPanel('login');
-    $('loginMsg').textContent='Akun ini belum terdaftar sebagai admin.';
+    $('loginMsg').textContent=error
+      ?'Gagal memeriksa role: '+error.message
+      :'Akses ditolak. Halaman ini hanya untuk Admin Teknis atau Super Admin.';
     return;
   }
 
   showPanel('app');
+  $('sessionInfo').textContent='Login: '+user.email+' · '+codes.join(', ');
   await loadSessions();
 }
-
 async function loadSessions(){
   say('Memuat sesi...');
   const {data,error}=await sb.from('ih_game_sessions')
