@@ -77,7 +77,7 @@ body{background:white}
 <div class="row noprint">
 <div>
 <h1>Admin Impostor Hunt</h1>
-<div class="muted">Terbitkan QR dan mulai sesi permainan.</div>
+<div class="muted">Kelola sesi permainan menggunakan satu jenis Admin CIH.</div>
 </div>
 <button class="alt" id="reload" style="max-width:130px">Muat ulang</button>
 <button class="danger" id="logout" style="max-width:100px">Keluar</button>
@@ -88,11 +88,11 @@ body{background:white}
 <select id="session" style="width:100%"></select>
 <div id="sessionInfo" class="muted"></div>
 <div class="row">
-<button id="issue">Terbitkan 36 QR</button>
+<button id="issue" class="alt" disabled>QR pemain sudah disiapkan</button>
 <button id="start" class="alt">Mulai permainan</button>
 </div>
 <div class="status" id="status">Pilih sesi untuk melihat status.</div>
-<p class="muted">QR hanya dapat diterbitkan satu kali saat sesi masih draft. Simpan atau cetak semua QR segera setelah diterbitkan. Tombol mulai menjalankan jeda 30 detik sesuai pengaturan.</p>
+<p class="muted">QR pemain menggunakan 18 QR master bersama dan QR wahana yang telah disiapkan. Gunakan tombol Mulai permainan setelah konfigurasi dan kesiapan sistem diperiksa.</p>
 </div>
 
 <div class="card">
@@ -133,25 +133,22 @@ async function enter(){
     return;
   }
 
-  const {data:roles,error}=await sb
-    .from('app_user_roles')
-    .select('role_code')
-    .eq('user_id',user.id);
+  const {data:isAdmin,error}=await sb.rpc('ih_is_admin');
 
-  const allowed=['it_admin','super_admin'];
-  const codes=(roles||[]).map(r=>r.role_code);
-
-  if(error||!codes.some(r=>allowed.includes(r))){
+  if(error||isAdmin!==true){
     await sb.auth.signOut();
     showPanel('login');
     $('loginMsg').textContent=error
-      ?'Gagal memeriksa role: '+error.message
-      :'Akses ditolak. Halaman ini hanya untuk Admin Teknis atau Super Admin.';
+      ?'Gagal memeriksa hak akses Admin: '+error.message
+      :'Akses ditolak. Akun belum terdaftar pada admin_users.';
     return;
   }
 
   showPanel('app');
-  $('sessionInfo').textContent='Login: '+user.email+' · '+codes.join(', ');
+  $('sessionInfo').textContent='Login: '+user.email+' · Hak akses Admin';
+  $('issue').disabled=true;
+  $('issue').textContent='QR pemain sudah disiapkan';
+  $('status').textContent='Gunakan QR master pemain dan QR wahana yang sudah disiapkan. Penerbitan QR baru tidak digunakan.';
   await loadSessions();
 }
 async function loadSessions(){
