@@ -38,15 +38,14 @@ async function login(){const email=document.getElementById("email").value.trim()
 async function checkSession(){
  const {data}=await db.auth.getSession(),session=data.session;
  if(!session){document.getElementById("loginBox").classList.remove("hidden");document.getElementById("app").classList.add("hidden");return}
- const {data:roles,error}=await db.from("app_user_roles").select("role_code").eq("user_id",session.user.id);
- const allowed=["voucher_staff","it_admin","super_admin"];
- if(error||!(roles||[]).some(r=>allowed.includes(r.role_code))){
+ const {data:isAdmin,error}=await db.rpc("ih_is_admin");
+ if(error||isAdmin!==true){
   await db.auth.signOut();document.getElementById("loginBox").classList.remove("hidden");document.getElementById("app").classList.add("hidden");
-  show("loginMsg",error?"Gagal memeriksa role: "+error.message:"Akses ditolak. Akun belum memiliki role Petugas Voucher.");return
+  show("loginMsg",error?"Gagal memeriksa akses Admin: "+error.message:"Akses ditolak. Akun ini belum terdaftar sebagai Admin.");return
  }
  document.getElementById("loginBox").classList.add("hidden");document.getElementById("app").classList.remove("hidden");
  document.getElementById("userEmail").textContent=session.user.email;
- document.getElementById("roleInfo").textContent="Role: "+roles.map(r=>r.role_code).join(", ");
+ document.getElementById("roleInfo").textContent="Akses: Admin";
 }
 async function logout(){await stopScanner();await db.auth.signOut();await checkSession()}
 async function startScanner(){if(scanning)return;try{if(!scanner)scanner=new Html5Qrcode("reader");await scanner.start({facingMode:"environment"},{fps:10,qrbox:{width:240,height:240}},async text=>{await stopScanner();await redeem(text)},()=>{});scanning=true}catch(e){show("scanResult","Kamera tidak dapat dibuka: "+e.message)}}
