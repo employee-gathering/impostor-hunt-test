@@ -137,4 +137,39 @@ $$;
 revoke all on function public.ih_admin_save_participant(text,text,text,uuid,boolean) from public, anon;
 grant execute on function public.ih_admin_save_participant(text,text,text,uuid,boolean) to authenticated;
 
+
+create or replace function public.ih_admin_list_participants()
+returns table(
+  attendee_id uuid,
+  username text,
+  nid text,
+  batch text,
+  active boolean,
+  team_id uuid,
+  team_code text,
+  team_name text
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $
+begin
+  if auth.uid() is null or not public.is_admin() then
+    raise exception 'Akses hanya untuk Admin.';
+  end if;
+  return query
+    select a.id, coalesce(pa.username,''), a.nid, a.batch, a.active,
+           tm.team_id, t.team_code, t.team_name
+    from public.attendees a
+    left join public.ih_participant_accounts pa on pa.attendee_id=a.id
+    left join public.ih_team_members tm on tm.attendee_id=a.id
+    left join public.ih_teams t on t.id=tm.team_id
+    order by a.batch, coalesce(pa.username,''), a.nid;
+end;
+$;
+revoke all on function public.ih_admin_list_participants() from public, anon;
+grant execute on function public.ih_admin_list_participants() to authenticated;
+
+
 commit;
