@@ -7,6 +7,7 @@
 <title>Impostor Hunt — Employee Gathering</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root{font-family:Inter,system-ui,Arial,sans-serif;color:#172033;background:#f3f5fb}
 *{box-sizing:border-box}
@@ -116,6 +117,14 @@ button.stop{background:#64748b}
 </div>
 </section>
 
+<section id="voucherCard" class="card hidden">
+ <span class="tag">VOUCHER MAKAN</span>
+ <h2>Voucher Makan Kamu</h2>
+ <p class="muted">Tunjukkan QR ini kepada petugas konsumsi. Voucher hanya dapat ditukar satu kali.</p>
+ <div id="voucherQr" class="center" style="display:flex;justify-content:center;padding:18px"></div>
+ <div id="voucherDetails" class="status success">Voucher aktif.</div>
+ <button class="alt" id="refreshVoucher" type="button">Muat ulang voucher</button>
+</section>
 <div class="footer">Employee Gathering · Impostor Hunt</div>
 </main>
 
@@ -512,6 +521,9 @@ $('submit').onclick=async()=>{
   $('answerMsg').textContent=result?.message||'Jawaban terkirim.';
   $('answerMsg').className='status'+(result?.correct?' success':'');
   await refresh(false);
+  if(result?.ok){
+   await showFoodVoucher();
+  }
 
  }catch(e){
   $('answerMsg').textContent='Gagal mengirim: '+e.message;
@@ -519,6 +531,34 @@ $('submit').onclick=async()=>{
   await refresh(false).catch(()=>{});
  }
 };
+
+async function showFoodVoucher(){
+ const card=$('voucherCard');
+ card.classList.add('hidden');
+ $('voucherQr').innerHTML='';
+ try{
+  const voucher=await rpc('ih_get_my_food_voucher',{p_login_token:loginToken});
+  if(!voucher?.ok){
+   $('answerMsg').textContent=(voucher?.message||'Voucher belum tersedia.');
+   return false;
+  }
+  $('voucherDetails').textContent=
+   (voucher.status==='redeemed'?'Voucher sudah ditukar.':'Voucher aktif — tunjukkan QR ini kepada petugas.')+
+   '\n'+(voucher.participant_name||'Peserta')+' · '+(voucher.team_code||'')+' · '+(voucher.batch||'');
+  if(voucher.status==='active'){
+   new QRCode($('voucherQr'),{text:voucher.token,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+  }else{
+   $('voucherQr').textContent='Voucher sudah ditukar pada '+new Date(voucher.redeemed_at).toLocaleString('id-ID');
+  }
+  card.classList.remove('hidden');
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+  return true;
+ }catch(e){
+  $('answerMsg').textContent='Jawaban terkirim, tetapi voucher belum dapat dimuat: '+e.message;
+  return false;
+ }
+}
+$('refreshVoucher').onclick=showFoodVoucher;
 
 window.addEventListener('offline',()=>{
  cameraMessage('Koneksi internet terputus. Scan dihentikan sampai jaringan kembali.','error');
