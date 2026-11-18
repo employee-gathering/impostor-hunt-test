@@ -153,7 +153,7 @@ language plpgsql
 stable
 security definer
 set search_path = public
-as $
+as $$
 begin
   if auth.uid() is null or not public.is_admin() then
     raise exception 'Akses hanya untuk Admin.';
@@ -167,7 +167,7 @@ begin
     left join public.ih_teams t on t.id=tm.team_id
     order by a.batch, coalesce(pa.username,''), a.nid;
 end;
-$;
+$$;
 revoke all on function public.ih_admin_list_participants() from public, anon;
 grant execute on function public.ih_admin_list_participants() to authenticated;
 
