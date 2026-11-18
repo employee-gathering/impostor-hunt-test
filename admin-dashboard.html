@@ -43,6 +43,7 @@ async function loadDashboard(){
  participants=p.data||[];teams=t.data||[];sessions=s.data||[];
  $('totalParticipants').textContent=participants.length;$('activeParticipants').textContent=participants.filter(x=>x.active).length;$('totalTeams').textContent=teams.length;$('totalBatches').textContent=new Set(sessions.map(x=>x.batch_code)).size;
  $('team').innerHTML='<option value="">Pilih tim...</option>'+teams.map(x=>'<option value="'+x.id+'">'+safe(x.team_code)+' — '+safe(x.team_name)+'</option>').join('');
+ $('batch').dispatchEvent(new Event('change'));
  $('batchFilter').innerHTML='<option value="">Semua batch</option>'+[...new Set(participants.map(x=>x.batch).filter(Boolean))].sort().map(x=>'<option>'+safe(x)+'</option>').join('');
  $('sessionsBody').innerHTML=sessions.map(x=>'<tr><td>'+safe(x.batch_code)+'</td><td>'+safe(x.status)+'</td><td><small>'+safe(x.id)+'</small></td></tr>').join('')||'<tr><td colspan="3">Belum ada sesi.</td></tr>';
  renderParticipants();notice('Data berhasil dimuat. Statistik mengikuti database secara dinamis.','ok');
