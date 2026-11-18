@@ -13,7 +13,7 @@
 <section id="app" class="hidden">
  <div class="top"><div><h1>Admin Dashboard CIH</h1><div class="muted" id="who">Pengelolaan Employee Gathering · Impostor Hunt</div></div><div class="row"><button class="alt" id="reload">Muat ulang</button><button class="danger" id="logout">Keluar</button></div></div>
  <div id="notice" class="status">Memuat data dashboard...</div>
- <section class="card"><h2>Ringkasan CIH</h2><div class="stats"><div class="stat"><span class="muted">Total peserta</span><b id="totalParticipants">—</b></div><div class="stat"><span class="muted">Peserta aktif</span><b id="activeParticipants">—</b></div><div class="stat"><span class="muted">Jumlah tim</span><b id="totalTeams">—</b></div><div class="stat"><span class="muted">Jumlah batch</span><b id="totalBatches">—</b></div></div></section>
+ <section class="card"><h2>Ringkasan CIH</h2><div class="stats"><div class="stat"><span class="muted">Peserta roster</span><b id="totalParticipants">—</b></div><div class="stat"><span class="muted">Peserta aktif</span><b id="activeParticipants">—</b></div><div class="stat"><span class="muted">Jumlah tim</span><b id="totalTeams">—</b></div><div class="stat"><span class="muted">Jumlah batch</span><b id="totalBatches">—</b></div></div></section>
  <section class="card" id="editor"><div class="row"><h2 id="formTitle">Tambah Peserta</h2><span class="pill">Login peserta: TIM + NID</span></div>
  <p class="muted">NID menjadi password peserta. Nama lengkap tidak diwajibkan untuk pengelolaan CIH; identitas tampilan menggunakan username TIM.</p>
  <div class="formgrid">
@@ -24,7 +24,7 @@
  </div>
  <div class="row" style="margin-top:10px"><div class="muted" id="editHint">Untuk peserta baru, masukkan username TIM, NID, batch, dan tim.</div><div class="actions"><button id="cancelEdit" class="alt hidden">Batal edit</button><button id="saveParticipant">Simpan peserta</button></div></div>
  </section>
- <section class="card"><div class="row"><h2>Daftar Peserta</h2><span class="pill" id="rowCount">0 data</span></div><div class="filters"><input id="search" placeholder="Cari username TIM atau NID..."><select id="batchFilter"><option value="">Semua batch</option></select><select id="statusFilter"><option value="">Semua status</option><option value="true">Aktif</option><option value="false">Nonaktif</option></select></div><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Username TIM</th><th>NID</th><th>Batch</th><th>Tim</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="participantsBody"><tr><td colspan="6">Belum ada data.</td></tr></tbody></table></div></section>
+ <section class="card"><div class="row"><h2>Daftar Peserta</h2><span class="pill" id="rowCount">0 data</span></div><div class="filters"><input id="search" placeholder="Cari username TIM atau NID..."><select id="batchFilter"><option value="">Semua batch</option></select><select id="statusFilter"><option value="true" selected>Peserta aktif (roster)</option><option value="">Semua status</option><option value="false">Nonaktif</option></select></div><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Username TIM</th><th>NID</th><th>Batch</th><th>Tim</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="participantsBody"><tr><td colspan="6">Belum ada data.</td></tr></tbody></table></div></section>
  <section class="card"><h2>Sesi Permainan</h2><div class="tablewrap"><table><thead><tr><th>Batch</th><th>Status</th><th>ID Sesi</th></tr></thead><tbody id="sessionsBody"><tr><td colspan="3">Memuat...</td></tr></tbody></table></div></section>
 </section></main>
 <script>
@@ -41,7 +41,7 @@ async function loadDashboard(){
  const [p,t,s]=await Promise.all([db.rpc('ih_admin_list_participants'),db.from('ih_teams').select('id,team_name,team_code,session_id').order('team_code'),db.from('ih_game_sessions').select('id,batch_code,status').order('batch_code')]);
  if(p.error)throw p.error;if(t.error)throw t.error;if(s.error)throw s.error;
  participants=p.data||[];teams=t.data||[];sessions=s.data||[];
- $('totalParticipants').textContent=participants.length;$('activeParticipants').textContent=participants.filter(x=>x.active).length;$('totalTeams').textContent=teams.length;$('totalBatches').textContent=new Set(sessions.map(x=>x.batch_code)).size;
+ $('totalParticipants').textContent=participants.filter(x=>x.active).length;$('activeParticipants').textContent=participants.filter(x=>x.active).length;$('totalTeams').textContent=teams.length;$('totalBatches').textContent=new Set(sessions.map(x=>x.batch_code)).size;
  $('team').innerHTML='<option value="">Pilih tim...</option>'+teams.map(x=>'<option value="'+x.id+'">'+safe(x.team_code)+' — '+safe(x.team_name)+'</option>').join('');
  $('batch').dispatchEvent(new Event('change'));
  $('batchFilter').innerHTML='<option value="">Semua batch</option>'+[...new Set(participants.map(x=>x.batch).filter(Boolean))].sort().map(x=>'<option>'+safe(x)+'</option>').join('');
