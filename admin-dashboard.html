@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Dashboard CIH — Employee Gathering</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:Inter,system-ui,Arial,sans-serif;color:#172033;background:#f3f5fb}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1180px;margin:auto;padding:20px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:18px;margin:14px 0}h1{font-size:25px;margin:0 0 6px}h2{font-size:18px;margin:0 0 12px}.muted{color:#64748b;font-size:13px;line-height:1.5}input,select,button{font:inherit;padding:11px 12px;border:1px solid #cbd5e1;border-radius:9px}input,select{background:white;min-width:0}button{background:#155eef;color:#fff;border:0;font-weight:700;cursor:pointer}button.alt{background:#eaf0ff;color:#1745a5}button.danger{background:#b42318}.hidden{display:none!important}.login{max-width:430px;margin:8vh auto}.login input,.login button{display:block;width:100%;margin:9px 0}.top,.row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.stat{background:#f8fafc;border:1px solid #e8edf4;border-radius:12px;padding:14px}.stat b{display:block;font-size:25px;margin-top:5px}.filters,.formgrid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}.formgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:800px}th,td{text-align:left;padding:10px;border-bottom:1px solid #e8edf3;font-size:13px}th{background:#f8fafc}.status{padding:12px;border-radius:10px;background:#eff6ff;color:#1745a5;margin:10px 0;white-space:pre-line}.status.error{background:#fee2e2;color:#991b1b}.status.ok{background:#dcfce7;color:#166534}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#eef2ff;color:#1745a5;font-size:12px}.actions{display:flex;gap:6px;flex-wrap:wrap}.actions button{padding:7px 9px;font-size:12px}@media(max-width:720px){.wrap{padding:12px}.stats{grid-template-columns:repeat(2,1fr)}.filters,.formgrid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main class="wrap">
+<section id="login" class="card login"><h1>Admin Dashboard CIH</h1><p class="muted">Masuk menggunakan akun Admin yang terdaftar pada tabel <code>admin_users</code>.</p><input id="email" type="email" placeholder="Email Admin" autocomplete="username"><input id="password" type="password" placeholder="Password" autocomplete="current-password"><button id="loginBtn">Masuk</button><div id="loginMsg" class="status hidden"></div></section>
+<section id="app" class="hidden">
+ <div class="top"><div><h1>Admin Dashboard CIH</h1><div class="muted" id="who">Pengelolaan Employee Gathering · Impostor Hunt</div></div><div class="row"><button class="alt" id="reload">Muat ulang</button><button class="danger" id="logout">Keluar</button></div></div>
+ <div id="notice" class="status">Memuat data dashboard...</div>
+ <section class="card"><h2>Ringkasan CIH</h2><div class="stats"><div class="stat"><span class="muted">Peserta roster</span><b id="totalParticipants">—</b></div><div class="stat"><span class="muted">Peserta aktif</span><b id="activeParticipants">—</b></div><div class="stat"><span class="muted">Jumlah tim</span><b id="totalTeams">—</b></div><div class="stat"><span class="muted">Jumlah batch</span><b id="totalBatches">—</b></div></div></section>
+ <section class="card" id="editor"><div class="row"><h2 id="formTitle">Tambah Peserta</h2><span class="pill">Login peserta: TIM + NID</span></div>
+ <p class="muted">NID menjadi password peserta. Nama lengkap tidak diwajibkan untuk pengelolaan CIH; identitas tampilan menggunakan username TIM.</p>
+ <div class="formgrid">
+  <input id="username" placeholder="Username TIM, contoh B1-T01-M01" autocapitalize="characters">
+  <input id="nid" placeholder="NID peserta" autocomplete="off">
+  <select id="batch"><option value="Batch 1">Batch 1</option><option value="Batch 2">Batch 2</option></select>
+  <select id="team"><option value="">Pilih tim...</option></select>
+ </div>
+ <div class="row" style="margin-top:10px"><div class="muted" id="editHint">Untuk peserta baru, masukkan username TIM, NID, batch, dan tim.</div><div class="actions"><button id="cancelEdit" class="alt hidden">Batal edit</button><button id="saveParticipant">Simpan peserta</button></div></div>
+ </section>
+ <section class="card"><div class="row"><h2>Daftar Peserta</h2><span class="pill" id="rowCount">0 data</span></div><div class="filters"><input id="search" placeholder="Cari username TIM atau NID..."><select id="batchFilter"><option value="">Semua batch</option></select><select id="statusFilter"><option value="true" selected>Peserta aktif (roster)</option><option value="">Semua status</option><option value="false">Nonaktif</option></select></div><div class="tablewrap" style="margin-top:12px"><table><thead><tr><th>Username TIM</th><th>NID</th><th>Batch</th><th>Tim</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="participantsBody"><tr><td colspan="6">Belum ada data.</td></tr></tbody></table></div></section>
+ <section class="card"><h2>Sesi Permainan</h2><div class="tablewrap"><table><thead><tr><th>Batch</th><th>Status</th><th>ID Sesi</th></tr></thead><tbody id="sessionsBody"><tr><td colspan="3">Memuat...</td></tr></tbody></table></div></section>
+</section></main>
+<script>
+const SUPABASE_URL='https://mnxnyasnmtgkmlhcqhys.supabase.co';
+const SUPABASE_KEY='sb_publishable_ZyLReVa5vQSf8uKvgj1kaA_ZN1oInWT';
+const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);const $=id=>document.getElementById(id);
+let participants=[],teams=[],sessions=[],editingId=null;
+function notice(text,type='info'){ $('notice').textContent=text;$('notice').className='status'+(type==='error'?' error':type==='ok'?' ok':''); }
+function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function verifyAdmin(){const {data,error}=await db.rpc('ih_is_admin');if(error)throw error;if(data!==true)throw new Error('Akses ditolak. Akun ini belum terdaftar sebagai Admin pada admin_users.');}
+async function enter(){const {data:{user}}=await db.auth.getUser();if(!user){$('login').classList.remove('hidden');$('app').classList.add('hidden');return;}try{await verifyAdmin();$('who').textContent='Login: '+(user.email||'Admin')+' · Hak akses Admin';$('login').classList.add('hidden');$('app').classList.remove('hidden');await loadDashboard();}catch(e){await db.auth.signOut();$('loginMsg').textContent=e.message;$('loginMsg').classList.remove('hidden');}}
+async function loadDashboard(){
+ notice('Memuat data CIH...');
+ const [p,t,s]=await Promise.all([db.rpc('ih_admin_list_participants'),db.from('ih_teams').select('id,team_name,team_code,session_id').order('team_code'),db.from('ih_game_sessions').select('id,batch_code,status').order('batch_code')]);
+ if(p.error)throw p.error;if(t.error)throw t.error;if(s.error)throw s.error;
+ participants=p.data||[];teams=t.data||[];sessions=s.data||[];
+ $('totalParticipants').textContent=participants.filter(x=>x.active).length;$('activeParticipants').textContent=participants.filter(x=>x.active).length;$('totalTeams').textContent=teams.length;$('totalBatches').textContent=new Set(sessions.map(x=>x.batch_code)).size;
+ $('team').innerHTML='<option value="">Pilih tim...</option>'+teams.map(x=>'<option value="'+x.id+'">'+safe(x.team_code)+' — '+safe(x.team_name)+'</option>').join('');
+ $('batch').dispatchEvent(new Event('change'));
+ $('batchFilter').innerHTML='<option value="">Semua batch</option>'+[...new Set(participants.map(x=>x.batch).filter(Boolean))].sort().map(x=>'<option>'+safe(x)+'</option>').join('');
+ $('sessionsBody').innerHTML=sessions.map(x=>'<tr><td>'+safe(x.batch_code)+'</td><td>'+safe(x.status)+'</td><td><small>'+safe(x.id)+'</small></td></tr>').join('')||'<tr><td colspan="3">Belum ada sesi.</td></tr>';
+ renderParticipants();notice('Data berhasil dimuat. Statistik mengikuti database secara dinamis.','ok');
+}
+function renderParticipants(){
+ const q=$('search').value.trim().toLowerCase(),batch=$('batchFilter').value,status=$('statusFilter').value;
+ const rows=participants.filter(p=>(!q||String(p.username||'').toLowerCase().includes(q)||String(p.nid||'').toLowerCase().includes(q))&&(!batch||p.batch===batch)&&(!status||(String(!!p.active)===status)));
+ $('rowCount').textContent=rows.length+' data';
+ $('participantsBody').innerHTML=rows.map(p=>'<tr><td><b>'+safe(p.username||'Belum ada akun')+'</b></td><td>'+safe(p.nid)+'</td><td>'+safe(p.batch)+'</td><td>'+safe(p.team_code||'Belum ditugaskan')+'</td><td>'+(p.active?'Aktif':'Nonaktif')+'</td><td><div class="actions"><button class="alt" data-edit="'+p.attendee_id+'">Edit</button><button class="danger" data-toggle="'+p.attendee_id+'" data-active="'+p.active+'">'+(p.active?'Nonaktifkan':'Aktifkan')+'</button></div></td></tr>').join('')||'<tr><td colspan="6">Tidak ada peserta yang cocok.</td></tr>';
+ $('participantsBody').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editParticipant(b.dataset.edit));
+ $('participantsBody').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggleParticipant(b.dataset.toggle,b.dataset.active==='true'));
+}
+function editParticipant(id){
+ const p=participants.find(x=>x.attendee_id===id);if(!p)return;
+ editingId=id;$('username').value=p.username||'';$('nid').value=p.nid||'';$('batch').value=p.batch||'Batch 1';$('team').value=p.team_id||'';
+ $('formTitle').textContent='Edit Peserta';$('editHint').textContent='Simpan akan memperbarui password akun menggunakan NID yang dimasukkan.';$('cancelEdit').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'});
+}
+function resetForm(){editingId=null;$('username').value='';$('nid').value='';$('batch').value='Batch 1';$('team').value='';$('formTitle').textContent='Tambah Peserta';$('editHint').textContent='Untuk peserta baru, masukkan username TIM, NID, batch, dan tim.';$('cancelEdit').classList.add('hidden');}
+async function saveParticipant(active=true){
+ const username=$('username').value.trim().toUpperCase(),nid=$('nid').value.trim(),batch=$('batch').value,teamId=$('team').value;
+ if(!username||!nid||!teamId){notice('Lengkapi username TIM, NID, dan tim.','error');return;}
+ $('saveParticipant').disabled=true;notice('Menyimpan data peserta...');
+ try{const {data,error}=await db.rpc('ih_admin_save_participant',{p_username:username,p_nid:nid,p_batch_code:batch,p_team_id:teamId,p_active:active});if(error)throw error;if(!data?.ok)throw new Error(data?.message||'Gagal menyimpan peserta.');resetForm();await loadDashboard();notice(data.message,'ok');}
+ catch(e){notice('Gagal menyimpan: '+e.message,'error');}
+ finally{$('saveParticipant').disabled=false;}
+}
+async function toggleParticipant(id,current){
+ const p=participants.find(x=>x.attendee_id===id);if(!p)return;
+ if(!p.team_id){notice('Peserta belum memiliki tim. Pilih Edit untuk menempatkan peserta terlebih dahulu.','error');return;}
+ const action=current?'menonaktifkan':'mengaktifkan';
+ if(!confirm('Yakin '+action+' akun '+(p.username||p.nid)+'?'))return;
+ const {data,error}=await db.rpc('ih_admin_save_participant',{p_username:p.username,p_nid:p.nid,p_batch_code:p.batch,p_team_id:p.team_id,p_active:!current});
+ if(error){notice('Gagal mengubah status: '+error.message,'error');return;}await loadDashboard();
+}
+$('loginBtn').onclick=async()=>{$('loginMsg').classList.add('hidden');$('loginBtn').disabled=true;const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});$('loginBtn').disabled=false;if(error){$('loginMsg').textContent=error.message;$('loginMsg').classList.remove('hidden');return;}await enter();};
+$('reload').onclick=()=>loadDashboard().catch(e=>notice('Gagal memuat dashboard: '+e.message,'error'));
+$('logout').onclick=async()=>{await db.auth.signOut();location.reload();};
+$('saveParticipant').onclick=()=>saveParticipant(true);$('cancelEdit').onclick=resetForm;
+['search','batchFilter','statusFilter'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',renderParticipants));
+$('batch').onchange=()=>{const prefix=$('batch').value==='Batch 1'?'B1-':'B2-';const opts=[...$('team').options];const current=$('team').value;for(const o of opts){if(o.value)o.hidden=!o.textContent.startsWith(prefix);}if(current&&$('team').selectedOptions[0]?.hidden)$('team').value='';};
+db.auth.getSession().then(({data,error})=>{if(error){$('loginMsg').textContent=error.message;$('loginMsg').classList.remove('hidden');return;}if(data.session)enter();});
+</script></body></html>

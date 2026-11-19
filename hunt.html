@@ -7,6 +7,7 @@
 <title>Impostor Hunt — Employee Gathering</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root{font-family:Inter,system-ui,Arial,sans-serif;color:#172033;background:#f3f5fb}
 *{box-sizing:border-box}
@@ -51,9 +52,10 @@ button.stop{background:#64748b}
 </header>
 
 <section class="card" id="login">
-<h2>Masuk ke Tim</h2>
-<p class="muted">Masukkan kode tim yang diberikan panitia. Gunakan perangkat yang sama selama permainan agar kode tim tetap tersimpan.</p>
-<input id="teamCode" placeholder="Contoh: B1-T01" autocomplete="off" autocapitalize="characters">
+<h2>Masuk Peserta</h2>
+<p class="muted">Masukkan username TIM dan NID sebagai password sesuai roster.</p>
+<input id="username" placeholder="Username TIM, contoh: B1-T01-M01" autocomplete="username" autocapitalize="characters">
+<input id="password" type="password" placeholder="NID / Password" autocomplete="current-password">
 <button id="join">Masuk ke permainan</button>
 <div id="loginMsg" class="muted"></div>
 </section>
@@ -67,7 +69,7 @@ button.stop{background:#64748b}
 <h2 id="teamName">—</h2>
 <span id="teamMeta" class="tag"></span>
 </div>
-<button class="alt" id="changeTeam" style="max-width:120px">Ganti tim</button>
+<button class="alt" id="changeTeam" style="max-width:120px">Keluar</button>
 </div>
 <div id="notice" class="status">Memuat status permainan...</div>
 </div>
@@ -115,6 +117,14 @@ button.stop{background:#64748b}
 </div>
 </section>
 
+<section id="voucherCard" class="card hidden">
+ <span class="tag">VOUCHER MAKAN</span>
+ <h2>Voucher Makan Kamu</h2>
+ <p class="muted">Tunjukkan QR ini kepada petugas konsumsi. Voucher hanya dapat ditukar satu kali.</p>
+ <div id="voucherQr" class="center" style="display:flex;justify-content:center;padding:18px"></div>
+ <div id="voucherDetails" class="status success">Voucher aktif.</div>
+ <button class="alt" id="refreshVoucher" type="button">Muat ulang voucher</button>
+</section>
 <div class="footer">Employee Gathering · Impostor Hunt</div>
 </main>
 
@@ -124,7 +134,7 @@ const SUPABASE_KEY='sb_publishable_ZyLReVa5vQSf8uKvgj1kaA_ZN1oInWT';
 const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=id=>document.getElementById(id);
 
-let teamCode=localStorage.getItem('ih_team_code')||'';
+let loginToken=localStorage.getItem('ih_login_token')||'';
 let pendingQr=new URL(location.href).searchParams.get('qr')||'';
 let refreshTimer=null;
 let scanner=null;
@@ -187,9 +197,9 @@ function cameraErrorText(error){
 }
 
 async function refresh(showDefaultNotice=true){
- if(!teamCode)return;
+ if(!loginToken)return;
 
- const state=await rpc('ih_get_team_state',{p_team_code:teamCode});
+ const state=await rpc('ih_get_team_state',{p_login_token:loginToken});
  if(!state?.ok){
   message(state?.message||'Tidak dapat memuat tim.','error');
   return;
@@ -373,7 +383,7 @@ async function onQrDetected(decodedText){
   }
 
   const result=await rpc('ih_scan_qr',{
-   p_team_code:teamCode,
+   p_login_token:loginToken,
    p_token:token
   });
 
@@ -419,7 +429,7 @@ async function onQrDetected(decodedText){
 }
 
 async function handleQr(){
- if(!pendingQr||!teamCode)return;
+ if(!pendingQr||!loginToken)return;
 
  const token=extractToken(pendingQr);
  pendingQr='';
@@ -431,58 +441,58 @@ async function handleQr(){
  await onQrDetected(token);
 }
 
-async function join(code){
- const codeValue=String(code||'').trim().toUpperCase();
- if(!codeValue){
-  $('loginMsg').textContent='Masukkan kode tim.';
+async function join(username,password){
+ const user=String(username||'').trim().toUpperCase();
+ const pass=String(password||'').trim();
+ if(!user||!pass){
+  $('loginMsg').textContent='Masukkan username TIM dan NID.';
   return;
  }
-
  $('join').disabled=true;
- $('loginMsg').textContent='Memeriksa kode tim...';
-
+ $('loginMsg').textContent='Memeriksa akun peserta...';
  try{
-  const state=await rpc('ih_get_team_state',{p_team_code:codeValue});
-  if(!state?.ok){
-   $('loginMsg').textContent=state?.message||'Kode tim tidak ditemukan.';
+  const result=await rpc('ih_participant_login',{
+   p_username:user,
+   p_password:pass
+  });
+  if(!result?.ok||!result?.login_token){
+   $('loginMsg').textContent=result?.message||'Username TIM atau NID tidak sesuai.';
    return;
   }
-
-  teamCode=codeValue;
-  localStorage.setItem('ih_team_code',teamCode);
+  loginToken=result.login_token;
+  localStorage.setItem('ih_login_token',loginToken);
+  $('password').value='';
   showGame(true);
   await refresh();
-
   if(!refreshTimer)
    refreshTimer=setInterval(()=>refresh(false).catch(()=>{}),8000);
-
   await handleQr();
-
  }catch(e){
   $('loginMsg').textContent='Gagal terhubung: '+e.message;
  }finally{
   $('join').disabled=false;
  }
 }
-
-$('join').onclick=()=>join($('teamCode').value);
-$('teamCode').value=teamCode;
+$('join').onclick=()=>join($('username').value,$('password').value);
+$('password').addEventListener('keydown',e=>{if(e.key==='Enter')join($('username').value,$('password').value);});
+$('username').addEventListener('keydown',e=>{if(e.key==='Enter')$('password').focus();});
 
 $('startScan').onclick=()=>startScanner(false);
 $('stopScan').onclick=stopScanner;
 $('testCamera').onclick=()=>startScanner(true);
 
 $('changeTeam').onclick=async()=>{
- if(confirm('Ganti kode tim di perangkat ini?')){
+ if(confirm('Keluar dari akun peserta di perangkat ini?')){
   await stopScanner();
-  localStorage.removeItem('ih_team_code');
-  teamCode='';
+  localStorage.removeItem('ih_login_token');
+  loginToken='';
   showGame(false);
   if(refreshTimer){
    clearInterval(refreshTimer);
    refreshTimer=null;
   }
-  $('teamCode').value='';
+  $('username').value='';
+  $('password').value='';
   $('loginMsg').textContent='';
  }
 };
@@ -503,7 +513,7 @@ $('submit').onclick=async()=>{
 
  try{
   const result=await rpc('ih_submit_answer',{
-   p_team_code:teamCode,
+   p_login_token:loginToken,
    p_animal_answer:answer,
    p_impostor_color_code:color
   });
@@ -511,6 +521,9 @@ $('submit').onclick=async()=>{
   $('answerMsg').textContent=result?.message||'Jawaban terkirim.';
   $('answerMsg').className='status'+(result?.correct?' success':'');
   await refresh(false);
+  if(result?.ok){
+   await showFoodVoucher();
+  }
 
  }catch(e){
   $('answerMsg').textContent='Gagal mengirim: '+e.message;
@@ -518,6 +531,34 @@ $('submit').onclick=async()=>{
   await refresh(false).catch(()=>{});
  }
 };
+
+async function showFoodVoucher(){
+ const card=$('voucherCard');
+ card.classList.add('hidden');
+ $('voucherQr').innerHTML='';
+ try{
+  const voucher=await rpc('ih_get_my_food_voucher',{p_login_token:loginToken});
+  if(!voucher?.ok){
+   $('answerMsg').textContent=(voucher?.message||'Voucher belum tersedia.');
+   return false;
+  }
+  $('voucherDetails').textContent=
+   (voucher.status==='redeemed'?'Voucher sudah ditukar.':'Voucher aktif — tunjukkan QR ini kepada petugas.')+
+   '\n'+(voucher.participant_name||'Peserta')+' · '+(voucher.team_code||'')+' · '+(voucher.batch||'');
+  if(voucher.status==='active'){
+   new QRCode($('voucherQr'),{text:voucher.token,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
+  }else{
+   $('voucherQr').textContent='Voucher sudah ditukar pada '+new Date(voucher.redeemed_at).toLocaleString('id-ID');
+  }
+  card.classList.remove('hidden');
+  card.scrollIntoView({behavior:'smooth',block:'center'});
+  return true;
+ }catch(e){
+  $('answerMsg').textContent='Jawaban terkirim, tetapi voucher belum dapat dimuat: '+e.message;
+  return false;
+ }
+}
+$('refreshVoucher').onclick=showFoodVoucher;
 
 window.addEventListener('offline',()=>{
  cameraMessage('Koneksi internet terputus. Scan dihentikan sampai jaringan kembali.','error');
@@ -528,9 +569,8 @@ window.addEventListener('online',()=>{
  cameraMessage('Koneksi kembali. Tekan Buka Kamera untuk melanjutkan.');
 });
 
-if(teamCode){
+if(loginToken){
  showGame(true);
- $('teamCode').value=teamCode;
 
  refresh().then(handleQr).catch(e=>{
   message('Gagal memuat: '+e.message,'error');
@@ -540,7 +580,7 @@ if(teamCode){
 }else{
  showGame(false);
  if(pendingQr){
-  $('loginMsg').textContent='QR terbaca. Masukkan kode tim untuk memproses QR.';
+  $('loginMsg').textContent='QR terbaca. Login untuk memproses QR.';
  }
 }
 </script>

@@ -25,11 +25,9 @@ function showApp(on){$('login').classList.toggle('hidden',on);$('app').classList
 function init(){sb=window.supabase.createClient('https://mnxnyasnmtgkmlhcqhys.supabase.co','sb_publishable_ZyLReVa5vQSf8uKvgj1kaA_ZN1oInWT');sb.auth.getSession().then(({data})=>{if(data.session)enter()})}
 async function enter(){
  const {data:{user}}=await sb.auth.getUser();if(!user){showApp(false);return}
- const {data:roles,error}=await sb.from('app_user_roles').select('role_code').eq('user_id',user.id);
- if(error){await sb.auth.signOut();$('loginMsg').textContent='Gagal memeriksa role: '+error.message;return}
- const codes=(roles||[]).map(r=>r.role_code);
- if(!codes.some(r=>['super_admin','it_admin','participant_admin'].includes(r))){await sb.auth.signOut();$('loginMsg').textContent='Akses ditolak. Akun harus memiliki role Admin Peserta.';return}
- $('who').textContent=user.email+' · '+codes.join(', ');showApp(true);await loadSessions()
+ const {data:isAdmin,error}=await sb.rpc('ih_is_admin');
+ if(error||isAdmin!==true){await sb.auth.signOut();$('loginMsg').textContent=error?'Gagal memeriksa akses Admin: '+error.message:'Akses ditolak. Akun ini belum terdaftar sebagai Admin.';return}
+ $('who').textContent=user.email+' · Admin';showApp(true);await loadSessions()
 }
 $('loginBtn').onclick=async()=>{const {error}=await sb.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error){$('loginMsg').textContent=error.message;return}await enter()};
 $('logout').onclick=async()=>{await sb.auth.signOut();showApp(false)};$('refresh').onclick=loadSessions;
