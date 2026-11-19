@@ -464,6 +464,7 @@ async function join(username,password){
   $('password').value='';
   showGame(true);
   await refresh();
+  await showFoodVoucher();
   if(!refreshTimer)
    refreshTimer=setInterval(()=>refresh(false).catch(()=>{}),8000);
   await handleQr();
@@ -572,7 +573,10 @@ window.addEventListener('online',()=>{
 if(loginToken){
  showGame(true);
 
- refresh().then(handleQr).catch(e=>{
+ refresh().then(async()=>{
+  await showFoodVoucher();
+  await handleQr();
+ }).catch(e=>{
   message('Gagal memuat: '+e.message,'error');
  });
 
