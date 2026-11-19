@@ -19,7 +19,7 @@
  <div class="formgrid">
   <input id="username" placeholder="Username TIM, contoh B1-T01-M01" autocapitalize="characters">
   <input id="nid" placeholder="NID peserta" autocomplete="off">
-  <select id="batch"><option value="Batch 1">Batch 1</option><option value="Batch 2">Batch 2</option></select>
+  <select id="batch"><option value="Batch 1">Batch 1</option><option value="Batch 2">Batch 2</option><option value="TEST">TEST (Pengujian)</option></select>
   <select id="team"><option value="">Pilih tim...</option></select>
  </div>
  <div class="row" style="margin-top:10px"><div class="muted" id="editHint">Untuk peserta baru, masukkan username TIM, NID, batch, dan tim.</div><div class="actions"><button id="cancelEdit" class="alt hidden">Batal edit</button><button id="saveParticipant">Simpan peserta</button></div></div>
@@ -83,6 +83,6 @@ $('reload').onclick=()=>loadDashboard().catch(e=>notice('Gagal memuat dashboard:
 $('logout').onclick=async()=>{await db.auth.signOut();location.reload();};
 $('saveParticipant').onclick=()=>saveParticipant(true);$('cancelEdit').onclick=resetForm;
 ['search','batchFilter','statusFilter'].forEach(id=>$(id).addEventListener(id==='search'?'input':'change',renderParticipants));
-$('batch').onchange=()=>{const prefix=$('batch').value==='Batch 1'?'B1-':'B2-';const opts=[...$('team').options];const current=$('team').value;for(const o of opts){if(o.value)o.hidden=!o.textContent.startsWith(prefix);}if(current&&$('team').selectedOptions[0]?.hidden)$('team').value='';};
+$('batch').onchange=()=>{const batch=$('batch').value;const prefix=batch==='Batch 1'?'B1-':batch==='Batch 2'?'B2-':'TEST-';const opts=[...$('team').options];const current=$('team').value;for(const o of opts){if(o.value)o.hidden=!o.textContent.startsWith(prefix);}if(current&&$('team').selectedOptions[0]?.hidden)$('team').value='';};
 db.auth.getSession().then(({data,error})=>{if(error){$('loginMsg').textContent=error.message;$('loginMsg').classList.remove('hidden');return;}if(data.session)enter();});
 </script></body></html>
