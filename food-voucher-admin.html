@@ -25,7 +25,7 @@ button{background:#155eef;color:white;border:0;font-weight:bold;cursor:pointer}b
 <div class="card"><h3>Scan QR Voucher</h3><div id="reader"></div><p class="muted">Arahkan kamera belakang ke QR voucher peserta.</p>
 <button onclick="startScanner()">Buka Kamera</button><button class="secondary" onclick="stopScanner()">Tutup Kamera</button><hr>
 <h4>Input token manual</h4><input id="manualToken" placeholder="Tempel token voucher di sini"><button onclick="redeem(document.getElementById('manualToken').value)">Periksa dan Tukarkan</button><div id="scanResult" class="result hidden"></div></div>
-<div class="card"><h3>Rekap Voucher</h3><select id="batchSelect" onchange="loadSummary()"><option value="">Pilih batch</option><option value="Batch 1">Batch 1</option><option value="Batch 2">Batch 2</option></select>
+<div class="card"><h3>Rekap Voucher</h3><select id="batchSelect" onchange="loadSummary()"><option value="">Pilih batch</option><option value="Batch 1">Batch 1</option><option value="Batch 2">Batch 2</option><option value="TEST">TEST (Pengujian)</option></select>
 <div class="stats"><div class="stat">Total<strong id="total">-</strong></div><div class="stat">Aktif<strong id="active">-</strong></div><div class="stat">Ditukar<strong id="redeemed">-</strong></div></div>
 <button class="secondary" onclick="loadSummary()">Perbarui Rekap</button></div></section></main>
 <script>
