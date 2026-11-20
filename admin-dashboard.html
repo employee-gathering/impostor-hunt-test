@@ -58,7 +58,7 @@ function renderParticipants(){
 }
 function editParticipant(id){
  const p=participants.find(x=>x.attendee_id===id);if(!p)return;
- editingId=id;$('username').value=p.username||'';$('nid').value=p.nid||'';$('batch').value=p.batch||'Batch 1';$('team').value=p.team_id||'';
+ editingId=id;$('username').value=p.username||'';$('nid').value=p.nid||'';$('batch').value=p.batch||'Batch 1';$('batch').dispatchEvent(new Event('change'));$('team').value=p.team_id||'';
  $('formTitle').textContent='Edit Peserta';$('editHint').textContent='Simpan akan memperbarui password akun menggunakan NID yang dimasukkan.';$('cancelEdit').classList.remove('hidden');$('editor').scrollIntoView({behavior:'smooth'});
 }
 function resetForm(){editingId=null;$('username').value='';$('nid').value='';$('batch').value='Batch 1';$('team').value='';$('formTitle').textContent='Tambah Peserta';$('editHint').textContent='Untuk peserta baru, masukkan username TIM, NID, batch, dan tim.';$('cancelEdit').classList.add('hidden');}
